@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  semantic-search:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      # Persist embeddings/index across container restarts
+      - ./data:/app/data
+      
