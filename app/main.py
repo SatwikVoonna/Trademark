@@ -1,25 +1,20 @@
 """
-FastAPI Service (Part 4)
+FastAPI Service — SciSearch (NCERT Science Semantic Search)
 
-This module wires together all components:
-- Embedding model for encoding queries
-- FAISS vector search for document retrieval
-- GMM fuzzy clustering for soft topic assignment
-- Cluster-accelerated semantic cache for deduplication
-
-Startup behavior:
-- If persisted data exists on disk, load it (fast restart).
-- Otherwise, download the dataset, generate embeddings, and persist them.
-
-Endpoints match the specification exactly:
-- POST /query — semantic search with caching
+Endpoints:
+- POST /query — semantic search returning { class, chapter, passage, score, subject, keywords }
 - GET /cache/stats — cache statistics
 - DELETE /cache — flush cache
+- Static frontend served from /static and / root
 """
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 import numpy as np
+import os
 
 from app.embeddings import (
     load_documents,
@@ -27,6 +22,7 @@ from app.embeddings import (
     model,
     save_to_disk,
     load_from_disk,
+    DATASET_DIR,
 )
 from app.search import VectorSearch
 from app.clustering import FuzzyCluster
@@ -34,24 +30,33 @@ from app.cache import SemanticCache
 
 
 app = FastAPI(
-    title="Semantic Search System",
-    description="Lightweight semantic search with fuzzy clustering and semantic caching",
+    title="SciSearch — NCERT Science Semantic Search",
+    description="Semantic search across NCERT Science textbooks (Class 6–11)",
+)
+
+# CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # ---------------------------------------------------------------------------
-# Startup: Load or generate embeddings, build search index and cluster model
+# Startup: Load or generate embeddings
 # ---------------------------------------------------------------------------
 
 print("Checking for persisted data...")
 index, embeddings, documents = load_from_disk()
 
 if index is not None:
-    print("Loaded persisted data from disk.")
+    print(f"Loaded persisted data from disk ({len(documents)} passages).")
     embeddings = np.array(embeddings).astype("float32")
 else:
-    print("No persisted data found. Loading documents...")
+    print("No persisted data found. Processing NCERT PDFs...")
     documents = load_documents()
-    print(f"Loaded {len(documents)} documents after cleaning.")
+    print(f"Loaded {len(documents)} passages after processing.")
 
     print("Generating embeddings (this may take a few minutes)...")
     embeddings = generate_embeddings(documents)
@@ -59,9 +64,9 @@ else:
 
     print("Persisting to disk...")
     save_to_disk(embeddings, documents)
-    index = None  # Will be built by VectorSearch
+    index = None
 
-# Build the vector search engine
+# Build vector search engine
 if index is not None:
     vector_search = VectorSearch(embeddings, documents, index=index)
 else:
@@ -70,33 +75,20 @@ else:
 # ---------------------------------------------------------------------------
 # Fuzzy Clustering
 # ---------------------------------------------------------------------------
-# BIC evaluation was run previously and determined optimal k=8.
-# BIC scores: k=8: -24267231 (lowest/best), k=9: -23723112, ..., k=21: highest
-# We hardcode k=8 to avoid re-running BIC on every startup (~10 min).
-# To re-evaluate, uncomment the lines below:
-# bic_results, optimal_k = FuzzyCluster.evaluate_cluster_count(
-#     embeddings, k_range=range(8, 22)
-# )
 optimal_k = 8
-
 print(f"\nTraining fuzzy cluster model with k={optimal_k}...")
 cluster_model = FuzzyCluster(n_clusters=optimal_k)
 cluster_model.train(embeddings)
 
-# Print cluster analysis to logs for evidence of meaningful clusters
+# Print brief cluster analysis
 print("\nCluster analysis:")
 analysis = cluster_model.analyze_clusters(embeddings, documents, n_examples=2)
 for c in analysis["clusters"]:
     print(f"  Cluster {c['cluster_id']}: {c['size']} documents")
-print(f"\nBoundary cases (high entropy — uncertain membership):")
-for bc in analysis["boundary_cases"]:
-    print(f"  Entropy={bc['entropy']:.3f}, top memberships: {bc['top_memberships']}")
-    print(f"    Snippet: {bc['snippet'][:100]}...")
 
 # ---------------------------------------------------------------------------
-# Semantic Cache: Cluster-accelerated, threshold-tunable
+# Semantic Cache
 # ---------------------------------------------------------------------------
-
 cache = SemanticCache(cluster_model=cluster_model, threshold=0.85)
 
 
@@ -113,16 +105,12 @@ def query_endpoint(q: Query):
     """
     Semantic search endpoint.
 
-    1. Encode the query into an embedding.
-    2. Check the semantic cache for a similar previous query.
-    3. On HIT: return cached result with matched_query and similarity_score.
-    4. On MISS: perform vector search + clustering, cache the result, return it.
-
-    Response schema matches the specification exactly.
+    Returns top 6 results with:
+    { class, chapter, passage, score, subject, keywords }
     """
     query_embedding = model.encode([q.query])[0]
 
-    # --- Cache lookup ---
+    # Cache lookup
     hit, entry, sim = cache.lookup(query_embedding, q.query)
 
     if hit:
@@ -132,11 +120,14 @@ def query_endpoint(q: Query):
             "matched_query": entry["query"],
             "similarity_score": float(sim),
             "result": entry["result"]["result"],
-            "dominant_cluster": entry["result"].get("dominant_cluster"),
         }
 
-    # --- Cache miss: compute fresh result ---
-    results = vector_search.search(np.array([query_embedding]).astype("float32"))
+    # Cache miss: compute fresh result
+    results = vector_search.search(
+        np.array([query_embedding]).astype("float32"),
+        query_text=q.query,
+        k=6,
+    )
 
     dominant_cluster, cluster_probs = cluster_model.predict(
         np.array([query_embedding])
@@ -147,14 +138,9 @@ def query_endpoint(q: Query):
         "cache_hit": False,
         "result": results,
         "dominant_cluster": int(dominant_cluster),
-        "cluster_distribution": {
-            int(i): round(float(p), 4)
-            for i, p in enumerate(cluster_probs)
-            if p > 0.01  # Only include clusters with >1% membership for readability
-        },
     }
 
-    # Store in cache for future similar queries
+    # Store in cache
     cache.store(query_embedding, q.query, response, dominant_cluster)
 
     return response
@@ -162,20 +148,36 @@ def query_endpoint(q: Query):
 
 @app.get("/cache/stats")
 def stats_endpoint():
-    """
-    Return current cache statistics.
-
-    Response keys match the specification:
-    - total_entries, hit_count, miss_count, hit_rate
-    """
+    """Return current cache statistics."""
     return cache.stats()
 
 
 @app.delete("/cache")
 def clear_endpoint():
-    """Flush the cache entirely and reset all stats."""
+    """Flush the cache entirely."""
     cache.clear()
     return {"message": "cache cleared"}
+
+
+# ---------------------------------------------------------------------------
+# Serve Frontend
+# ---------------------------------------------------------------------------
+FRONTEND_DIR = os.path.join(os.path.dirname(__file__), "..", "frontend")
+
+
+@app.get("/")
+def serve_index():
+    """Serve the main frontend page."""
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+
+# Mount static files (CSS, JS) — must come AFTER route definitions
+if os.path.exists(FRONTEND_DIR):
+    app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+# Mount PDF files directory
+if os.path.exists(DATASET_DIR):
+    app.mount("/pdfs", StaticFiles(directory=DATASET_DIR), name="pdfs")
 
 
 if __name__ == "__main__":

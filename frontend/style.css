@@ -1,0 +1,586 @@
+/* ================================================================
+   SciSearch — NCERT Science Semantic Search
+   Design: Dark book-themed with warm accents
+   Colors: #FFF8F0, #C08552, #8C5A3C, #4B2E2B
+   ================================================================ */
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+:root {
+    --cream: #FFF8F0;
+    --copper: #C08552;
+    --brown: #8C5A3C;
+    --dark-brown: #4B2E2B;
+    
+    /* Default: Light Theme */
+    --bg-primary: #FFF8F0;
+    --bg-secondary: #f7ede2;
+    --bg-card: #ffffff;
+    --bg-card-hover: #ffffff;
+    --text-primary: #4B2E2B;
+    --text-secondary: #5d3d3a;
+    --text-muted: #8C5A3C;
+    --glow-color: rgba(192, 133, 82, 0.15);
+    --shadow-card: 0 4px 15px rgba(75, 46, 43, 0.08);
+    --shadow-hover: 0 12px 30px rgba(75, 46, 43, 0.12);
+    --particle-opacity: 0.4;
+    --card-border: rgba(192, 133, 82, 0.2);
+}
+
+[data-theme="dark"] {
+    --bg-primary: #1a0f0a;
+    --bg-secondary: #2a1a12;
+    --bg-card: #2f1c14;
+    --bg-card-hover: #3a2419;
+    --text-primary: #FFF8F0;
+    --text-secondary: #d4b8a0;
+    --text-muted: #9a7a60;
+    --glow-color: rgba(192, 133, 82, 0.3);
+    --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+    --shadow-hover: 0 8px 40px rgba(192, 133, 82, 0.25);
+    --particle-opacity: 0.7;
+    --card-border: rgba(192, 133, 82, 0.12);
+}
+
+html {
+    font-size: 16px;
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-body);
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    min-height: 100vh;
+    overflow-x: hidden;
+    line-height: 1.6;
+}
+
+/* --- Particle Canvas Background --- */
+#particleCanvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    opacity: var(--particle-opacity);
+    transition: opacity 0.5s ease;
+}
+
+/* --- Theme Toggle --- */
+.theme-toggle {
+    position: fixed;
+    top: 24px;
+    right: 24px;
+    z-index: 100;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: 1px solid var(--copper);
+    background: var(--bg-card);
+    color: var(--copper);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-card);
+}
+
+.theme-toggle:hover {
+    transform: rotate(15deg) scale(1.1);
+    background: var(--copper);
+    color: white;
+}
+
+.theme-toggle svg {
+    width: 20px;
+    height: 20px;
+    position: absolute;
+    transition: all 0.3s ease;
+}
+
+/* Icons visibility */
+.sun-icon { opacity: 0; transform: rotate(90deg); }
+.moon-icon { opacity: 1; transform: rotate(0); }
+
+[data-theme="dark"] .sun-icon { opacity: 1; transform: rotate(0); }
+[data-theme="dark"] .moon-icon { opacity: 0; transform: rotate(-90deg); }
+
+/* --- Container --- */
+.container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 20px 60px;
+    min-height: 100vh;
+}
+
+/* --- Header --- */
+.header {
+    text-align: center;
+    padding: 60px 0 40px;
+    animation: fadeInDown 0.8s ease-out;
+}
+
+.logo-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-bottom: 12px;
+}
+
+.logo-icon {
+    font-size: 3rem;
+    animation: float 3s ease-in-out infinite;
+}
+
+.logo-text {
+    font-family: var(--font-heading);
+    font-size: 3.2rem;
+    font-weight: 800;
+    color: var(--dark-brown); /* Default for light mode */
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    transition: color 0.3s ease;
+}
+
+[data-theme="dark"] .logo-text {
+    background: linear-gradient(135deg, var(--cream) 0%, var(--copper) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.tagline {
+    font-family: var(--font-body);
+    color: var(--copper);
+    font-size: 1.1rem;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: var(--brown);
+    font-size: 0.85rem;
+    letter-spacing: 1px;
+    font-weight: 500;
+}
+
+/* --- Search Section --- */
+.search-section {
+    margin-bottom: 40px;
+    animation: fadeInUp 0.8s ease-out 0.2s both;
+}
+
+.search-bar-wrapper {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.search-bar {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 2px solid var(--copper);
+    border-radius: 50px; /* Fully rounded edges */
+    padding: 6px 8px 6px 20px;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 4px 20px rgba(192, 133, 82, 0.1);
+}
+
+.search-bar:focus-within {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(192, 133, 82, 0.2);
+}
+
+.search-icon {
+    width: 22px;
+    height: 22px;
+    color: var(--copper);
+    flex-shrink: 0;
+    margin-right: 12px;
+}
+
+#searchInput {
+    flex: 1;
+    border: none;
+    background: transparent;
+    color: var(--dark-brown);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    outline: none;
+    padding: 14px 0;
+}
+
+#searchInput::placeholder {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.search-btn {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    background: var(--dark-brown);
+    color: var(--cream);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+    transform: scale(1.08);
+    background: var(--brown);
+}
+
+/* --- Chips --- */
+.chips-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+}
+
+.chip {
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    padding: 8px 16px;
+    background: white;
+    border: 1px solid var(--copper);
+    border-radius: 50px;
+    color: var(--brown);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+}
+
+.chip:hover {
+    background: var(--copper);
+    color: white;
+}
+
+/* --- Results --- */
+/* --- Loading & Skeletons --- */
+.loading-state {
+    text-align: center;
+    padding: 20px 0;
+}
+
+.skeleton-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.skeleton-card {
+    background: var(--bg-card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    height: 180px;
+    position: relative;
+    overflow: hidden;
+    padding: 24px;
+    box-shadow: var(--shadow-card);
+}
+
+.skeleton-shimmer {
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 200%;
+    height: 100%;
+    background: linear-gradient(
+        90deg, 
+        transparent 0%, 
+        rgba(192, 133, 82, 0.05) 40%, 
+        rgba(192, 133, 82, 0.1) 50%, 
+        rgba(192, 133, 82, 0.05) 60%, 
+        transparent 100%
+    );
+    animation: shimmer 1.8s infinite linear;
+}
+
+.loading-text {
+    margin-top: 15px;
+    font-family: var(--font-body);
+    color: var(--copper);
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+}
+
+/* --- Results Card Structure --- */
+.result-card {
+    background: var(--bg-card);
+    border: 1px solid var(--card-border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-card);
+    transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    animation: cardFadeIn 0.5s ease backwards;
+    position: relative;
+    overflow: hidden;
+}
+
+.result-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--copper);
+    box-shadow: var(--shadow-hover);
+}
+
+.card-header {
+    display: flex;
+    flex-direction: column; /* Vertical stack */
+    gap: 12px;
+}
+
+.chapter-title-row {
+    display: block;
+    margin: 4px 0 8px;
+}
+
+/* --- Hyperlink Styling --- */
+.chapter-title {
+    font-family: var(--font-heading);
+    font-size: 1.1rem; /* Prominent chapter title */
+    font-weight: 800;
+    color: var(--text-primary);
+    cursor: pointer;
+    text-decoration: none;
+    display: inline; /* Key for multi-line transition */
+    background-image: linear-gradient(var(--copper), var(--copper));
+    background-position: 0% 100%;
+    background-repeat: no-repeat;
+    background-size: 0% 3px; /* Thicker for better visibility */
+    transition: background-size 0.4s cubic-bezier(0.22, 1, 0.36, 1), color 0.3s ease;
+    line-height: 1.4;
+    padding-bottom: 4px;
+}
+
+.chapter-title:hover {
+    background-size: 100% 3px;
+    color: var(--copper);
+}
+
+.chapter-title .link-icon {
+    font-size: 0.8rem;
+    display: inline-block;
+    vertical-align: middle;
+    margin-left: 4px;
+    opacity: 0.4;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.chapter-title:hover .link-icon {
+    transform: translate(3px, -3px);
+    opacity: 1;
+    color: var(--copper);
+}
+
+/* Class badge - simple text design */
+.class-badge {
+    font-family: var(--font-heading);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--copper);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+}
+
+.card-passage {
+    color: var(--text-secondary);
+}
+
+.card-passage::after {
+    background: linear-gradient(transparent, var(--bg-card));
+}
+
+.card-passage .highlight {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border-bottom: 2px solid var(--copper);
+}
+
+.score-bar-track {
+    background: #f0e6dc;
+}
+
+.score-value {
+    color: var(--brown);
+}
+
+.query-info {
+    border-top: 1px solid var(--copper);
+    color: var(--brown);
+}
+
+.query-info .cache-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    background: rgba(76, 175, 80, 0.15);
+    color: #81c784;
+    border-radius: 50px;
+    font-size: 0.7rem;
+    margin-left: 8px;
+}
+
+/* --- Footer --- */
+.footer {
+    text-align: center;
+    padding: 40px 0 20px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+}
+
+/* ================================================================
+   ANIMATIONS
+   ================================================================ */
+
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes cardFadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shimmer {
+    to { left: 100%; }
+}
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-12px); }
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+
+@media (max-width: 768px) {
+    .container {
+        padding: 20px 16px 40px;
+    }
+
+    .header {
+        padding: 40px 0 30px;
+    }
+
+    .logo-text {
+        font-size: 2.2rem;
+        letter-spacing: 2px;
+    }
+
+    .logo-icon {
+        font-size: 2.2rem;
+    }
+
+    .tagline {
+        font-size: 0.9rem;
+    }
+
+    #searchInput {
+        font-size: 0.85rem;
+    }
+
+    #searchInput::placeholder {
+        font-size: 0.75rem;
+    }
+
+    .chips-container {
+        gap: 8px;
+    }
+
+    .chip {
+        font-size: 0.7rem;
+        padding: 6px 12px;
+    }
+
+    .result-card {
+        padding: 18px;
+    }
+
+    .card-header {
+        gap: 8px;
+    }
+
+    .chapter-title {
+        font-size: 0.78rem;
+    }
+
+    .card-passage {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-text {
+        font-size: 1.8rem;
+    }
+
+    .logo-icon {
+        font-size: 1.8rem;
+    }
+
+    .tagline {
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+    }
+
+    .subtitle {
+        font-size: 0.75rem;
+    }
+
+    .search-bar {
+        padding: 4px 6px 4px 14px;
+    }
+
+    .search-btn {
+        width: 42px;
+        height: 42px;
+    }
+}

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SciSearch — Semantic search across NCERT Science textbooks from Class 6 to 11. Find relevant passages using natural language queries.">
+    <title>SciSearch — NCERT Science Semantic Search</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Theme Toggle -->
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle Dark Mode">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 6.34-1.41 1.41"/>
+        </svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
+        </svg>
+    </button>
+
+    <!-- Particle Canvas Background -->
+    <canvas id="particleCanvas"></canvas>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo-wrapper">
+                <span class="logo-icon">📖</span>
+                <h1 class="logo-text">SciSearch</h1>
+            </div>
+            <p class="tagline">Search NCERT Science, Semantically</p>
+            <p class="subtitle">Class 6 to 11 &bull; Physics &bull; Chemistry &bull; Biology</p>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-bar-wrapper">
+                <div class="search-bar">
+                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="11" cy="11" r="8"/>
+                        <path d="m21 21-4.35-4.35"/>
+                    </svg>
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Ask anything... e.g. 'how do plants make food'"
+                        autocomplete="off"
+                    >
+                    <button id="searchBtn" class="search-btn" aria-label="Search">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </button>
+                </div>
+                <div class="search-glow"></div>
+            </div>
+
+            <!-- Quick suggestion chips -->
+            <div class="chips-container">
+                <button class="chip" data-query="Photosynthesis">🌿 Photosynthesis</button>
+                <button class="chip" data-query="Newton's laws of motion">🍎 Newton's Laws</button>
+                <button class="chip" data-query="Structure of atom">⚛️ Atoms</button>
+                <button class="chip" data-query="Human digestive system">🫁 Digestion</button>
+                <button class="chip" data-query="Electric current and circuits">⚡ Electricity</button>
+                <button class="chip" data-query="Chemical reactions and equations">🧪 Reactions</button>
+                <button class="chip" data-query="Light reflection and refraction">🔦 Light</button>
+                <button class="chip" data-query="Cell structure and function">🔬 Cells</button>
+            </div>
+        </section>
+
+        <!-- Results Section -->
+        <section class="results-section" id="resultsSection">
+            <!-- Loading State -->
+            <div class="loading-state" id="loadingState" style="display: none;">
+                <div class="skeleton-cards">
+                    <div class="skeleton-card"><div class="skeleton-shimmer"></div></div>
+                    <div class="skeleton-card"><div class="skeleton-shimmer"></div></div>
+                    <div class="skeleton-card"><div class="skeleton-shimmer"></div></div>
+                </div>
+                <div class="bouncing-dots">
+                    <span></span><span></span><span></span>
+                </div>
+                <p class="loading-text">Searching through textbooks...</p>
+            </div>
+
+            <!-- Empty State -->
+            <div class="empty-state" id="emptyState" style="display: none;">
+                <div class="empty-illustration">
+                    <svg viewBox="0 0 200 200" fill="none">
+                        <circle cx="100" cy="100" r="80" stroke="#C08552" stroke-width="2" stroke-dasharray="8 4" opacity="0.4"/>
+                        <circle cx="100" cy="100" r="50" stroke="#8C5A3C" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.3"/>
+                        <text x="100" y="95" text-anchor="middle" fill="#C08552" font-size="40">📚</text>
+                        <text x="100" y="125" text-anchor="middle" fill="#8C5A3C" font-family="Space Mono" font-size="10">No results</text>
+                    </svg>
+                </div>
+                <p class="empty-text">No matching passages found</p>
+                <p class="empty-hint">Try a different query or check your spelling</p>
+            </div>
+
+            <!-- Results Container -->
+            <div class="results-container" id="resultsContainer"></div>
+
+            <!-- Query Info -->
+            <div class="query-info" id="queryInfo" style="display: none;"></div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Built with Sentence Transformers &bull; FAISS &bull; FastAPI</p>
+        </footer>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

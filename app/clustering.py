@@ -123,10 +123,17 @@ class FuzzyCluster:
 
         analysis = {"clusters": [], "boundary_cases": []}
 
+        def _get_snippet(doc, max_len=200):
+            """Extract a text snippet from a document (dict or string)."""
+            if isinstance(doc, dict):
+                text = doc.get("passage", str(doc))
+            else:
+                text = str(doc)
+            return text[:max_len] + "..." if len(text) > max_len else text
+
         # Analyze each cluster
         for k in range(self.n_clusters):
             members = np.where(hard_assignments == k)[0]
-            # Get documents with highest membership probability for this cluster
             cluster_probs = all_probs[:, k]
             top_indices = np.argsort(cluster_probs)[-n_examples:][::-1]
 
@@ -136,7 +143,7 @@ class FuzzyCluster:
                 "top_documents": [
                     {
                         "probability": float(cluster_probs[i]),
-                        "snippet": documents[i][:200] + "...",
+                        "snippet": _get_snippet(documents[i]),
                     }
                     for i in top_indices
                 ],
@@ -144,15 +151,13 @@ class FuzzyCluster:
             analysis["clusters"].append(cluster_info)
 
         # Find boundary cases: documents with high entropy (uncertain membership)
-        # Entropy measures how spread the probability is — high entropy = belongs to
-        # multiple clusters equally, which is the most interesting case.
         entropies = -np.sum(all_probs * np.log(all_probs + 1e-10), axis=1)
         boundary_indices = np.argsort(entropies)[-n_examples:][::-1]
 
         for idx in boundary_indices:
             top_clusters = np.argsort(all_probs[idx])[-3:][::-1]
             analysis["boundary_cases"].append({
-                "snippet": documents[idx][:200] + "...",
+                "snippet": _get_snippet(documents[idx]),
                 "entropy": float(entropies[idx]),
                 "top_memberships": {
                     int(c): float(all_probs[idx][c]) for c in top_clusters

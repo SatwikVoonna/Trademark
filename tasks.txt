@@ -1,0 +1,62 @@
+Change the data set to 6 - 11th classes of ncert Science text book.
+The data set is added into this folder "6-12th science dataset"
+completely remove the old data set - 20 Newspapers 
+Do not generate synthetic data or mock data.
+work with only the dataset
+
+Download all python dependencies and install them.
+So that no errors show in the python files.
+create a basic front end to display the input and output and the working of the system:
+    Build a semantic search web app for NCERT Science textbooks (Class 6 to 11).
+
+## App Purpose
+Users type a natural language query (e.g. "how do plants make food") and get
+back the most relevant passages from NCERT Science textbooks, ranked by
+semantic similarity.
+
+## Layout & Pages
+- Single page app
+- Top: App title "SciSearch" with a tagline "Search NCERT Science, Semantically"
+- Center: A large search bar with a search button
+- Below search: Quick-suggestion chips (e.g. Photosynthesis, Gravity, Atoms)
+- Results section: Cards showing matched passages
+
+## Result Card Design
+Each card should show:
+- Class number badge (e.g. "Class 8")
+- Chapter name as card title
+- Matched passage text with query keywords highlighted
+- Similarity score as a thin progress bar (0–100%)
+- Subject tag (Physics / Chemistry / Biology)
+
+## Visual Style
+- Dark theme with deep navy/space background
+- Accent color: #FFF8F0
+#C08552
+#8C5A3C
+#4B2E2B
+- Font: Orbitron for headings, Space Mono for body text
+- Subtle glowing borders on cards on hover
+- Floating particle or star background animation
+- Smooth fade-in animation for result cards (staggered)
+- Mobile responsive
+
+## Interactions
+- Pressing Enter or clicking Search triggers search
+- Chips auto-fill the search bar and trigger search
+- Loading spinner (3 bouncing dots) while fetching
+- Empty state illustration when no results found
+- Skeleton loader cards while results load
+
+Response: [{ class, chapter, passage, score, subject, keywords }]
+- Show top 6 results max
+- Highlight matched keywords in passage text
+
+## Extra Polish
+- Animated score bar that fills after card appears
+- Hover lifts card slightly with glow shadow
+#FFF8F0
+#C08552
+#8C5A3C
+#4B2E2B
+use these colors for the whole website to make it look like a book
