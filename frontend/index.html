@@ -1,122 +1,332 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SciSearch — Semantic search across NCERT Science textbooks from Class 6 to 11. Find relevant passages using natural language queries.">
+    <meta name="description" content="SciSearch — NCERT Science Semantic Search">
     <title>SciSearch — NCERT Science Semantic Search</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&family=Outfit:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: ['class', '[data-theme="dark"]'],
+            theme: {
+                extend: {
+                    colors: {
+                        cream: '#FFF8F0',
+                        copper: '#C08552',
+                        brown: '#8C5A3C',
+                        darkbrown: '#4B2E2B',
+                    },
+                    fontFamily: {
+                        sans: ['Outfit', 'sans-serif'],
+                        heading: ['Orbitron', 'sans-serif'],
+                        mono: ['Space Mono', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .custom-scrollbar::-webkit-scrollbar {
+                width: 6px;
+            }
+            .custom-scrollbar::-webkit-scrollbar-track {
+                background: transparent;
+            }
+            .custom-scrollbar::-webkit-scrollbar-thumb {
+                @apply bg-copper/50 rounded-full;
+            }
+            .custom-scrollbar {
+                scrollbar-width: thin;
+                scrollbar-color: #C08552 transparent;
+                overscroll-behavior: contain;
+            }
+            .glass-panel {
+                @apply bg-white/60 backdrop-blur-md border border-white/20 shadow-lg dark:bg-black/40 dark:border-white/10;
+            }
+        }
+    </style>
 
     <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
+
+<body
+    class="bg-[var(--bg-primary)] text-[var(--text-primary)] min-h-screen font-sans antialiased overflow-x-hidden transition-colors duration-500">
     <!-- Theme Toggle -->
-    <button id="themeToggle" class="theme-toggle" aria-label="Toggle Dark Mode">
-        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 6.34-1.41 1.41"/>
-        </svg>
-        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>
-        </svg>
+    <button id="themeToggle"
+        class="absolute top-6 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center glass-panel hover:scale-110 transition-all duration-300 group overflow-hidden"
+        aria-label="Toggle Dark Mode">
+        <div class="relative w-6 h-6">
+            <svg class="sun-icon absolute inset-0 w-6 h-6 text-copper transition-all duration-500 dark:rotate-0 dark:opacity-100 rotate-90 opacity-0 group-hover:rotate-45"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="4" />
+                <path d="M12 2v2" />
+                <path d="M12 20v2" />
+                <path d="m4.93 4.93 1.41 1.41" />
+                <path d="m17.66 17.66 1.41 1.41" />
+                <path d="M2 12h2" />
+                <path d="M20 12h2" />
+                <path d="m6.34 17.66-1.41 1.41" />
+                <path d="m19.07 6.34-1.41 1.41" />
+            </svg>
+            <svg class="moon-icon absolute inset-0 w-6 h-6 text-copper transition-all duration-500 dark:rotate-90 dark:opacity-0 rotate-0 opacity-100 group-hover:-rotate-12"
+                viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+            </svg>
+        </div>
     </button>
 
     <!-- Particle Canvas Background -->
     <canvas id="particleCanvas"></canvas>
 
-    <!-- Main Container -->
-    <div class="container">
-        <!-- Header -->
-        <header class="header">
-            <div class="logo-wrapper">
-                <span class="logo-icon">📖</span>
-                <h1 class="logo-text">SciSearch</h1>
-            </div>
-            <p class="tagline">Search NCERT Science, Semantically</p>
-            <p class="subtitle">Class 6 to 11 &bull; Physics &bull; Chemistry &bull; Biology</p>
-        </header>
+    <!-- Main Container Layout -->
+    <div class="relative z-10 max-w-[1400px] mx-auto px-4 py-12 min-h-screen flex flex-col md:flex-row gap-12">
 
-        <!-- Search Section -->
-        <section class="search-section">
-            <div class="search-bar-wrapper">
-                <div class="search-bar">
-                    <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="11" cy="11" r="8"/>
-                        <path d="m21 21-4.35-4.35"/>
-                    </svg>
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="Ask anything... e.g. 'how do plants make food'"
-                        autocomplete="off"
-                    >
-                    <button id="searchBtn" class="search-btn" aria-label="Search">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                            <path d="M5 12h14M12 5l7 7-7 7"/>
+        <!-- Sidebar Filters -->
+        <aside
+            class="w-full md:w-[280px] shrink-0 glass-panel rounded-2xl p-6 h-fit sticky top-12 animate-[fadeInLeft_0.6s_ease-out] md:-ml-4 max-h-[calc(100vh-6rem)] overflow-y-auto custom-scrollbar">
+            <div class="flex items-center justify-between mb-8 pb-3 border-b border-copper/30">
+                <h2 class="text-xl font-bold font-heading text-[var(--text-primary)] tracking-wide">Filters</h2>
+                <button id="resetFiltersBtn"
+                    class="text-[0.7rem] font-bold text-copper hover:text-brown transition-all uppercase tracking-widest hover:tracking-[0.15em]">Reset</button>
+            </div>
+
+            <!-- Subject Filter -->
+            <div class="mb-8">
+                <h3
+                    class="font-bold text-[0.75rem] mb-4 text-[var(--brown)] uppercase tracking-widest font-mono opacity-80">
+                    Subject</h3>
+                <div class="flex flex-col gap-2" id="subjectFilters">
+                    <label
+                        class="flex items-center gap-3 p-2 rounded-xl hover:bg-[#f3e9dc] dark:hover:bg-copper/10 transition-colors cursor-pointer group">
+                        <input type="checkbox" data-category="subject" value="Physics"
+                            class="filter-checkbox w-4 h-4 rounded border-copper text-copper focus:ring-copper cursor-pointer" />
+                        <span class="text-[0.9rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Physics
+                            <span class="text-xs opacity-50 ml-1 filter-count">(0)</span></span>
+                    </label>
+                    <label
+                        class="flex items-center gap-3 p-2 rounded-xl hover:bg-[#f3e9dc] dark:hover:bg-copper/10 transition-colors cursor-pointer group">
+                        <input type="checkbox" data-category="subject" value="Chemistry"
+                            class="filter-checkbox w-4 h-4 rounded border-copper text-copper focus:ring-copper cursor-pointer" />
+                        <span class="text-[0.9rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Chemistry
+                            <span class="text-xs opacity-50 ml-1 filter-count">(0)</span></span>
+                    </label>
+                    <label
+                        class="flex items-center gap-3 p-2 rounded-xl hover:bg-[#f3e9dc] dark:hover:bg-copper/10 transition-colors cursor-pointer group">
+                        <input type="checkbox" data-category="subject" value="Biology"
+                            class="filter-checkbox w-4 h-4 rounded border-copper text-copper focus:ring-copper cursor-pointer" />
+                        <span class="text-[0.9rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Biology
+                            <span class="text-xs opacity-50 ml-1 filter-count">(0)</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Class Filter -->
+            <div class="mb-8">
+                <h3
+                    class="font-bold text-[0.75rem] mb-4 text-[var(--brown)] uppercase tracking-widest font-mono opacity-80">
+                    Class</h3>
+                <div class="grid grid-cols-2 gap-4" id="classFilters">
+                        <label class="flex items-center gap-3 group cursor-pointer py-1.5 px-1 rounded-lg hover:bg-copper/5 transition-all">
+                            <input type="checkbox"
+                                class="filter-checkbox w-4 h-4 rounded text-copper focus:ring-copper/50 border-white/20 bg-white/10 dark:bg-white/5"
+                                value="6" data-category="class">
+                            <span
+                                class="text-[0.85rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Class
+                                6</span></label>
+                        <label class="flex items-center gap-3 group cursor-pointer py-1.5 px-1 rounded-lg hover:bg-copper/5 transition-all">
+                            <input type="checkbox"
+                                class="filter-checkbox w-4 h-4 rounded text-copper focus:ring-copper/50 border-white/20 bg-white/10 dark:bg-white/5"
+                                value="7" data-category="class">
+                            <span
+                                class="text-[0.85rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Class
+                                7</span></label>
+                        <label class="flex items-center gap-3 group cursor-pointer py-1.5 px-1 rounded-lg hover:bg-copper/5 transition-all">
+                            <input type="checkbox"
+                                class="filter-checkbox w-4 h-4 rounded text-copper focus:ring-copper/50 border-white/20 bg-white/10 dark:bg-white/5"
+                                value="8" data-category="class">
+                            <span
+                                class="text-[0.85rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Class
+                                8</span></label>
+                        <label class="flex items-center gap-3 group cursor-pointer py-1.5 px-1 rounded-lg hover:bg-copper/5 transition-all">
+                            <input type="checkbox"
+                                class="filter-checkbox w-4 h-4 rounded text-copper focus:ring-copper/50 border-white/20 bg-white/10 dark:bg-white/5"
+                                value="9" data-category="class">
+                            <span
+                                class="text-[0.85rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Class
+                                9</span></label>
+                        <label class="flex items-center gap-3 group cursor-pointer py-1.5 px-1 rounded-lg hover:bg-copper/5 transition-all">
+                            <input type="checkbox"
+                                class="filter-checkbox w-4 h-4 rounded text-copper focus:ring-copper/50 border-white/20 bg-white/10 dark:bg-white/5"
+                                value="10" data-category="class">
+                            <span
+                                class="text-[0.85rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Class
+                                10</span></label>
+                        <label class="flex items-center gap-3 group cursor-pointer py-1.5 px-1 rounded-lg hover:bg-copper/5 transition-all">
+                            <input type="checkbox"
+                                class="filter-checkbox w-4 h-4 rounded text-copper focus:ring-copper/50 border-white/20 bg-white/10 dark:bg-white/5"
+                                value="11" data-category="class">
+                            <span
+                                class="text-[0.85rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0]">Class
+                                11</span></label>
+                </div>
+            </div>
+
+            <!-- Chapter Filter -->
+            <div>
+                <h3
+                    class="font-bold text-[0.75rem] mb-4 text-[var(--brown)] uppercase tracking-widest font-mono opacity-80">
+                    Chapter</h3>
+                <div class="flex flex-col gap-1 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"
+                    id="chapterFilters">
+                    <p class="text-[0.8rem] opacity-50 italic px-2" id="emptyChapterState">Perform a search to see
+                        chapters...</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col items-center">
+            <!-- Header -->
+            <header class="w-full mb-12 animate-[fadeInDown_0.8s_ease-out]">
+                <div class="flex flex-col items-center">
+                    <div class="flex items-center gap-5 mb-6">
+                        <span class="text-[3.5rem] animate-[float_4s_ease-in-out_infinite]">📖</span>
+                        <h1
+                            class="font-heading text-[3.8rem] font-black tracking-[6px] uppercase text-[var(--dark-brown)] transition-all duration-300 logo-text-custom text-center">
+                            SciSearch</h1>
+                    </div>
+                    <p
+                        class="font-mono text-[var(--copper)] text-[1.2rem] tracking-[4px] font-bold mt-2 uppercase text-center">
+                        Semantic Science Discovery</p>
+                    <p
+                        class="text-[var(--brown)] text-[0.9rem] tracking-[2px] font-medium mt-2 opacity-70 uppercase text-center">
+                        Class 6–12 &bull; Comprehensive NCERT Deep Search</p>
+                </div>
+            </header>
+
+            <!-- Search Section -->
+            <section class="w-full max-w-3xl mb-12 animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
+                <div class="relative mb-8 group">
+                    <div
+                        class="flex items-center glass-panel border-2 border-copper rounded-[50px] p-[8px_10px_8px_24px] transition-all duration-500 hover:shadow-2xl focus-within:-translate-y-1 focus-within:shadow-2xl focus-within:border-copper/80">
+                        <svg class="w-[24px] h-[24px] text-copper shrink-0 mr-4 group-focus-within:scale-110 transition-transform duration-300"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.35-4.35" />
                         </svg>
-                    </button>
+                        <input type="text" id="searchInput"
+                            class="flex-1 bg-transparent border-none outline-none px-4 py-3 placeholder:text-[#E8D5B0]/70 text-[var(--dark-brown)] dark:text-[#FFF8F0] dark:font-medium"
+                            placeholder="Ask anything... e.g. 'how do plants make food'" autocomplete="off">
+                        <button id="searchBtn"
+                            class="w-14 h-14 border-none rounded-full bg-[var(--dark-brown)] text-[var(--cream)] cursor-pointer flex items-center justify-center shrink-0 transition-all duration-500 hover:bg-[var(--brown)] hover:scale-110 hover:rotate-6 shadow-lg"
+                            aria-label="Search">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" class="w-7 h-7">
+                                <path d="M5 12h14M12 5l7 7-7 7" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
-                <div class="search-glow"></div>
-            </div>
 
-            <!-- Quick suggestion chips -->
-            <div class="chips-container">
-                <button class="chip" data-query="Photosynthesis">🌿 Photosynthesis</button>
-                <button class="chip" data-query="Newton's laws of motion">🍎 Newton's Laws</button>
-                <button class="chip" data-query="Structure of atom">⚛️ Atoms</button>
-                <button class="chip" data-query="Human digestive system">🫁 Digestion</button>
-                <button class="chip" data-query="Electric current and circuits">⚡ Electricity</button>
-                <button class="chip" data-query="Chemical reactions and equations">🧪 Reactions</button>
-                <button class="chip" data-query="Light reflection and refraction">🔦 Light</button>
-                <button class="chip" data-query="Cell structure and function">🔬 Cells</button>
-            </div>
-        </section>
-
-        <!-- Results Section -->
-        <section class="results-section" id="resultsSection">
-            <!-- Loading State -->
-            <div class="loading-state" id="loadingState" style="display: none;">
-                <div class="skeleton-cards">
-                    <div class="skeleton-card"><div class="skeleton-shimmer"></div></div>
-                    <div class="skeleton-card"><div class="skeleton-shimmer"></div></div>
-                    <div class="skeleton-card"><div class="skeleton-shimmer"></div></div>
+                <!-- Quick suggestion chips centered -->
+                <div class="flex justify-center flex-wrap gap-3 chips-container mt-6">
+                    <button
+                        class="chip px-5 py-2.5 rounded-full border border-copper/30 bg-white/40 hover:bg-copper hover:text-white dark:bg-[#3a2419] dark:text-[#E8D5B0] dark:border-copper/50 hover:dark:bg-copper hover:dark:text-white transition-all duration-300 font-medium text-sm shadow-sm"
+                        data-query="Photosynthesis">🌿 Photosynthesis</button>
+                    <button
+                        class="chip px-5 py-2.5 rounded-full border border-copper/30 bg-white/40 hover:bg-copper hover:text-white dark:bg-[#3a2419] dark:text-[#E8D5B0] dark:border-copper/50 hover:dark:bg-copper hover:dark:text-white transition-all duration-300 font-medium text-sm shadow-sm"
+                        data-query="Newton's laws of motion">🍎 Newton's Laws</button>
+                    <button
+                        class="chip px-5 py-2.5 rounded-full border border-copper/30 bg-white/40 hover:bg-copper hover:text-white dark:bg-[#3a2419] dark:text-[#E8D5B0] dark:border-copper/50 hover:dark:bg-copper hover:dark:text-white transition-all duration-300 font-medium text-sm shadow-sm"
+                        data-query="Structure of atom">⚛️ Atoms</button>
+                    <button
+                        class="chip px-5 py-2.5 rounded-full border border-copper/30 bg-white/40 hover:bg-copper hover:text-white dark:bg-[#3a2419] dark:text-[#E8D5B0] dark:border-copper/50 hover:dark:bg-copper hover:dark:text-white transition-all duration-300 font-medium text-sm shadow-sm"
+                        data-query="Human digestive system">🫁 Digestion</button>
+                    <button
+                        class="chip px-5 py-2.5 rounded-full border border-copper/30 bg-white/40 hover:bg-copper hover:text-white dark:bg-[#3a2419] dark:text-[#E8D5B0] dark:border-copper/50 hover:dark:bg-copper hover:dark:text-white transition-all duration-300 font-medium text-sm shadow-sm"
+                        data-query="Electric current and circuits">⚡ Electricity</button>
                 </div>
-                <div class="bouncing-dots">
-                    <span></span><span></span><span></span>
+            </section>
+
+            <!-- Results Section -->
+            <section class="max-w-3xl w-full flex-1 relative" id="resultsSection">
+                <!-- Initial Empty State -->
+                <div id="initialState" class="text-center py-16 opacity-30 animate-pulse">
+                    <p class="text-xl font-medium tracking-widest font-heading uppercase">Start searching to see
+                        results...</p>
                 </div>
-                <p class="loading-text">Searching through textbooks...</p>
-            </div>
 
-            <!-- Empty State -->
-            <div class="empty-state" id="emptyState" style="display: none;">
-                <div class="empty-illustration">
-                    <svg viewBox="0 0 200 200" fill="none">
-                        <circle cx="100" cy="100" r="80" stroke="#C08552" stroke-width="2" stroke-dasharray="8 4" opacity="0.4"/>
-                        <circle cx="100" cy="100" r="50" stroke="#8C5A3C" stroke-width="1.5" stroke-dasharray="6 3" opacity="0.3"/>
-                        <text x="100" y="95" text-anchor="middle" fill="#C08552" font-size="40">📚</text>
-                        <text x="100" y="125" text-anchor="middle" fill="#8C5A3C" font-family="Space Mono" font-size="10">No results</text>
-                    </svg>
+                <!-- Others stayed the same... -->
+                <div class="text-center py-10" id="loadingState" style="display: none;">
+                    <div class="flex flex-col gap-6">
+                        <div class="h-44 glass-panel rounded-2xl relative overflow-hidden">
+                            <div class="skeleton-shimmer"></div>
+                        </div>
+                        <div class="h-44 glass-panel rounded-2xl relative overflow-hidden">
+                            <div class="skeleton-shimmer"></div>
+                        </div>
+                    </div>
                 </div>
-                <p class="empty-text">No matching passages found</p>
-                <p class="empty-hint">Try a different query or check your spelling</p>
-            </div>
-
-            <!-- Results Container -->
-            <div class="results-container" id="resultsContainer"></div>
-
-            <!-- Query Info -->
-            <div class="query-info" id="queryInfo" style="display: none;"></div>
-        </section>
-
-        <!-- Footer -->
-        <footer class="footer">
-            <p>Built with Sentence Transformers &bull; FAISS &bull; FastAPI</p>
-        </footer>
+                <div class="text-center py-20" id="emptyState" style="display: none;"></div>
+                <div class="query-info mb-8 pb-4 border-b border-copper/20" id="queryInfo" style="display: none;"></div>
+                <div class="results-container flex flex-col gap-6" id="resultsContainer"></div>
+            </section>
+        </main>
     </div>
+
+    <!-- Footer -->
+    <footer
+        class="text-center py-12 pb-8 text-[var(--text-muted)] text-[0.8rem] tracking-[2px] relative z-20 font-medium uppercase opacity-60">
+        <p>Built with Sentence Transformers &bull; FAISS &bull; FastAPI</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+    <style>
+        .logo-text-custom {
+            background-clip: text;
+        }
+
+        [data-theme="dark"] .logo-text-custom {
+            background: linear-gradient(135deg, #FFF8F0 0%, #C08552 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .skeleton-shimmer {
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 200%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent 0%, rgba(192, 133, 82, 0.08) 40%, rgba(192, 133, 82, 0.15) 50%, rgba(192, 133, 82, 0.08) 60%, transparent 100%);
+            animation: shimmer 2s infinite linear;
+        }
+
+        @keyframes shimmer {
+            to {
+                left: 100%;
+            }
+        }
+    </style>
+
+    <!-- Footer -->
+    <footer
+        class="text-center py-12 pb-8 text-[var(--text-muted)] text-[0.8rem] tracking-[2px] relative z-20 font-medium uppercase opacity-60">
+        <p>Built with Sentence Transformers &bull; FAISS &bull; FastAPI</p>
+    </footer>
 
     <script src="/static/app.js"></script>
 </body>
+
 </html>

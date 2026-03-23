@@ -38,13 +38,93 @@
     --bg-card: #2f1c14;
     --bg-card-hover: #3a2419;
     --text-primary: #FFF8F0;
-    --text-secondary: #d4b8a0;
-    --text-muted: #9a7a60;
+    /* Warm Parchment — body/passage text, not headings */
+    --text-secondary: #E8D5B0;
+    --text-muted: #b09070;
     --glow-color: rgba(192, 133, 82, 0.3);
     --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
     --shadow-hover: 0 8px 40px rgba(192, 133, 82, 0.25);
     --particle-opacity: 0.7;
     --card-border: rgba(192, 133, 82, 0.12);
+}
+
+/* ── Dark mode: body/objective text only ─────────────────────── */
+
+/* Filter sidebar labels (not the section headings) */
+[data-theme="dark"] aside label span,
+[data-theme="dark"] #chapterFilters label span,
+[data-theme="dark"] .filter-checkbox + span {
+    color: #E8D5B0 !important; /* Warmer parchment cream */
+}
+
+/* Filter count numbers inside labels */
+[data-theme="dark"] .filter-count {
+    color: #b09070 !important; 
+    opacity: 0.8 !important;
+}
+
+/* Card passage / body text */
+[data-theme="dark"] .card-passage,
+[data-theme="dark"] [class*="card-passage"] {
+    color: #E8D5B0 !important;
+}
+
+/* Search input typed text */
+[data-theme="dark"] #searchInput {
+    color: #FFF8F0 !important; 
+    font-weight: 600 !important;
+}
+
+/* Search placeholder */
+[data-theme="dark"] [data-theme="dark"] #searchInput::placeholder,
+[data-theme="dark"] #searchInput::-webkit-input-placeholder {
+    color: #E8D5B0 !important; 
+    opacity: 0.9 !important;
+}
+
+/* Chip labels (suggestions) */
+[data-theme="dark"] .chip,
+[data-theme="dark"] button.chip {
+    color: #E8D5B0 !important; /* Warm parchment text */
+    border-color: rgba(192, 133, 82, 0.6) !important;
+    background: #3a2419 !important; /* Opaque dark brown background for contrast */
+}
+
+[data-theme="dark"] .chip:hover {
+    color: #fff !important;
+    background: var(--copper) !important;
+}
+
+[data-theme="dark"] .chip:hover {
+    color: #fff;
+    background: var(--copper);
+    border-color: var(--copper);
+}
+
+/* Query info summary text */
+[data-theme="dark"] .query-info {
+    color: #E8D5B0;
+}
+
+/* Result card general paragraph text  */
+[data-theme="dark"] .result-card p,
+[data-theme="dark"] .result-card span:not([class*="font-heading"]):not([class*="font-mono"]):not([class*="text-copper"]):not([class*="tracking-"]) {
+    color: #E8D5B0;
+}
+
+/* Page number badge text */
+[data-theme="dark"] [class*="text-muted"] {
+    color: #b09070;
+}
+
+/* Sidebar Reset button */
+[data-theme="dark"] #resetFiltersBtn {
+    color: var(--copper);
+}
+
+/* Footer text */
+[data-theme="dark"] footer p {
+    color: #b09070;
 }
 
 html {

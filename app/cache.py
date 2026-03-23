@@ -62,7 +62,7 @@ class SemanticCache:
         dominant, _ = self.cluster_model.predict(np.array([embedding]))
         return dominant
 
-    def lookup(self, embedding, query_text):
+    def lookup(self, embedding, query_text, filters=None):
         """
         Search the cache for a semantically similar previous query.
 
@@ -88,6 +88,11 @@ class SemanticCache:
         best_sim = -1
 
         for entry in bucket:
+            entry_filters = entry.get("filters", {})
+            req_filters = filters or {}
+            if entry_filters != req_filters:
+                continue
+
             sim = cosine_similarity(
                 [embedding],
                 [entry["embedding"]]
@@ -104,7 +109,7 @@ class SemanticCache:
         self.miss_count += 1
         return False, None, None
 
-    def store(self, embedding, query_text, result, cluster_id):
+    def store(self, embedding, query_text, result, cluster_id, filters=None):
         """
         Store a new entry in the cache, bucketed by cluster.
 
@@ -121,6 +126,7 @@ class SemanticCache:
             "embedding": np.array(embedding).tolist(),
             "query": query_text,
             "result": result,
+            "filters": filters or {},
         })
 
     def stats(self):

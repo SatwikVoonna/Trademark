@@ -54,10 +54,11 @@ class FuzzyCluster:
         # random_state for reproducibility; n_init=3 to avoid poor local optima.
         self.model = GaussianMixture(
             n_components=n_clusters,
-            covariance_type="full",
+            covariance_type="spherical",
+            init_params="random",
             random_state=42,
-            n_init=3,
-            max_iter=200,
+            n_init=1,
+            max_iter=10,
         )
 
     def train(self, embeddings):
@@ -95,7 +96,7 @@ class FuzzyCluster:
         for k in k_range:
             gmm = GaussianMixture(
                 n_components=k,
-                covariance_type="full",
+                covariance_type="diag",
                 random_state=42,
                 n_init=2,
                 max_iter=100,

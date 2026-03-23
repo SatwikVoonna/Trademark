@@ -19,7 +19,7 @@ import os
 from app.embeddings import (
     load_documents,
     generate_embeddings,
-    model,
+    encode_texts,
     save_to_disk,
     load_from_disk,
     DATASET_DIR,
@@ -98,6 +98,7 @@ cache = SemanticCache(cluster_model=cluster_model, threshold=0.85)
 
 class Query(BaseModel):
     query: str
+    filters: dict = {}
 
 
 @app.post("/query")
@@ -108,10 +109,10 @@ def query_endpoint(q: Query):
     Returns top 6 results with:
     { class, chapter, passage, score, subject, keywords }
     """
-    query_embedding = model.encode([q.query])[0]
+    query_embedding = encode_texts([q.query])[0]
 
     # Cache lookup
-    hit, entry, sim = cache.lookup(query_embedding, q.query)
+    hit, entry, sim = cache.lookup(query_embedding, q.query, q.filters)
 
     if hit:
         return {
@@ -120,14 +121,18 @@ def query_endpoint(q: Query):
             "matched_query": entry["query"],
             "similarity_score": float(sim),
             "result": entry["result"]["result"],
+            "facets": entry["result"].get("facets", {}),
         }
 
     # Cache miss: compute fresh result
-    results = vector_search.search(
+    search_output = vector_search.search(
         np.array([query_embedding]).astype("float32"),
         query_text=q.query,
         k=6,
+        filters=q.filters,
     )
+    results = search_output["results"]
+    facets = search_output["facets"]
 
     dominant_cluster, cluster_probs = cluster_model.predict(
         np.array([query_embedding])
@@ -137,11 +142,12 @@ def query_endpoint(q: Query):
         "query": q.query,
         "cache_hit": False,
         "result": results,
+        "facets": facets,
         "dominant_cluster": int(dominant_cluster),
     }
 
     # Store in cache
-    cache.store(query_embedding, q.query, response, dominant_cluster)
+    cache.store(query_embedding, q.query, response, dominant_cluster, q.filters)
 
     return response
 
@@ -182,4 +188,4 @@ if os.path.exists(DATASET_DIR):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

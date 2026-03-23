@@ -27,20 +27,81 @@ Design Decisions:
 import os
 import re
 import json
+import logging
 import numpy as np
 import faiss
 import fitz  # PyMuPDF
+import requests
 
-from sentence_transformers import SentenceTransformer
+# Configure logging
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-# Compact, high-quality model for semantic similarity
-model = SentenceTransformer("all-MiniLM-L6-v2")
+# Model constants
+MODEL_NAME = "all-MiniLM-L6-v2"
+HF_API_URL = f"https://api-inference.huggingface.co/pipeline/feature-extraction/sentence-transformers/{MODEL_NAME}"
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 DATASET_DIR = os.path.join(os.path.dirname(__file__), "..", "6-12th science dataset")
 FAISS_INDEX_PATH = os.path.join(DATA_DIR, "faiss.index")
 DOCUMENTS_PATH = os.path.join(DATA_DIR, "documents.json")
 EMBEDDINGS_PATH = os.path.join(DATA_DIR, "embeddings.npy")
+
+# Global model instance (lazy loaded)
+_model = None
+
+def get_model():
+    """
+    Lazy-load the SentenceTransformer model.
+    Falls back to a 'cloud' mode if dependencies are missing.
+    """
+    global _model
+    if _model is not None:
+        return _model
+
+    try:
+        from sentence_transformers import SentenceTransformer
+        logger.info(f"Loading local SentenceTransformer model: {MODEL_NAME}")
+        # Use local_files_only=True to ensure we don't try to download if it might fail
+        # but wait, first run needs download. Let's just catch and log properly.
+        _model = SentenceTransformer(MODEL_NAME)
+        logger.info("Local model loaded successfully.")
+    except Exception as e:
+        import traceback
+        logger.warning(f"Could not load local model. Switching to HuggingFace Inference API.")
+        logger.debug(traceback.format_exc())
+        _model = "CLOUD_API"
+    
+    return _model
+
+def encode_texts(texts):
+    """
+    Encode a list of texts into embeddings.
+    Works locally via torch or remotely via HF Inference API.
+    """
+    model = get_model()
+    
+    if model == "CLOUD_API":
+        # Remote inference fallback (ideal for Vercel/Lambda)
+        # Fix: Using 'models/' instead of 'pipeline/feature-extraction/' for newer API
+        API_URL = f"https://api-inference.huggingface.co/models/sentence-transformers/{MODEL_NAME}"
+        headers = {}
+        token = os.getenv("HF_TOKEN")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+            
+        try:
+            response = requests.post(API_URL, headers=headers, json={"inputs": texts, "options": {"wait_for_model": True}})
+            response.raise_for_status()
+            return np.array(response.json())
+        except Exception as e:
+            logger.error(f"HF API encoding failed: {e}")
+            if hasattr(e, 'response') and e.response is not None:
+                logger.error(f"Response content: {e.response.text}")
+            raise
+    else:
+        # Local inference
+        return model.encode(texts, show_progress_bar=False)
 
 
 def _parse_filename(filename):
@@ -252,7 +313,7 @@ def generate_embeddings(documents):
     Uses the passage text only (not metadata) for embedding.
     """
     texts = [doc["passage"] for doc in documents]
-    embeddings = model.encode(texts, show_progress_bar=True, batch_size=64)
+    embeddings = encode_texts(texts)
     return embeddings
 
 

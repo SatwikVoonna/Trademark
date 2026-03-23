@@ -1,0 +1,12 @@
+.venv/
+venv/
+__pycache__/
+.git/
+.vscode/
+.env
+
+# Ignore the raw PDFs to save bundle space (assuming we use pre-computed index)
+6-12th science dataset/
+
+# Do NOT ignore the data folder as it contains our index
+!data/

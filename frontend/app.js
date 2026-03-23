@@ -99,15 +99,18 @@ const currentTheme = localStorage.getItem('theme') || 'light';
 
 if (currentTheme === 'dark') {
     document.documentElement.setAttribute('data-theme', 'dark');
+    document.documentElement.classList.add('dark');
 }
 
 themeToggle.addEventListener('click', () => {
     let theme = document.documentElement.getAttribute('data-theme');
     if (theme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.classList.remove('dark');
         localStorage.setItem('theme', 'light');
     } else {
         document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.classList.add('dark');
         localStorage.setItem('theme', 'dark');
     }
 });
@@ -118,13 +121,80 @@ const searchInput = document.getElementById('searchInput');
 const searchBtn = document.getElementById('searchBtn');
 const loadingState = document.getElementById('loadingState');
 const emptyState = document.getElementById('emptyState');
+const initialState = document.getElementById('initialState');
 const resultsContainer = document.getElementById('resultsContainer');
 const queryInfo = document.getElementById('queryInfo');
 const chips = document.querySelectorAll('.chip');
+const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+const chapterFiltersContainer = document.getElementById('chapterFilters');
 
 
 // --- API Config ---
 const API_BASE = window.location.origin;
+
+
+// --- Filter State & Logic ---
+function getActiveFilters() {
+    const filters = {};
+    
+    document.querySelectorAll('.filter-checkbox:checked').forEach(cb => {
+        const cat = cb.dataset.category || cb.closest('[id$="Filters"]').id.replace('Filters','');
+        let val = cb.value;
+        if (cat === 'class') {
+            val = parseInt(val);
+        }
+        if (!filters[cat]) {
+            filters[cat] = [];
+        }
+        filters[cat].push(val);
+    });
+
+    // Only return categories that have at least one selection
+    return filters;
+}
+
+function updateFilterCounts(facets) {
+    if (!facets) return;
+
+    // Update subjects and classes counts
+    document.querySelectorAll('.filter-checkbox').forEach(cb => {
+        const cat = cb.dataset.category || cb.closest('[id$="Filters"]').id.replace('Filters','');
+        if (cat === 'subject' || cat === 'class') {
+            const countSpan = cb.nextElementSibling.querySelector('.filter-count');
+            if (countSpan) {
+                const count = (facets[cat] && facets[cat][cb.value]) ? facets[cat][cb.value] : 0;
+                countSpan.textContent = `(${count})`;
+            }
+        }
+    });
+
+    // Populate dynamic chapters if not populated yet, or update them
+    if (facets.chapter && Object.keys(facets.chapter).length > 0) {
+        // Keep checked chapters
+        const checkedChapters = Array.from(document.querySelectorAll('#chapterFilters input:checked')).map(cb => cb.value);
+        
+        let html = '';
+        Object.keys(facets.chapter).sort().forEach(chapter => {
+            const isChecked = checkedChapters.includes(chapter) ? 'checked' : '';
+            const count = facets.chapter[chapter];
+            
+            html += `
+                <label class="flex items-center gap-3 p-2 rounded-xl hover:bg-[#f3e9dc] dark:hover:bg-copper/10 transition-colors cursor-pointer group">
+                    <input type="checkbox" data-category="chapter" value="${escapeHTML(chapter)}" ${isChecked} class="filter-checkbox w-4 h-4 rounded border-copper text-copper focus:ring-copper cursor-pointer" />
+                    <span class="text-[0.85rem] font-medium group-hover:translate-x-1 transition-transform dark:text-[#E8D5B0] ${isChecked ? 'text-[#d4af37] font-bold' : ''}">${escapeHTML(chapter)} <span class="text-xs opacity-50 ml-1 filter-count">(${count})</span></span>
+                </label>
+            `;
+        });
+        chapterFiltersContainer.innerHTML = html;
+
+        // Re-attach event listeners to new dynamic checkboxes
+        chapterFiltersContainer.querySelectorAll('.filter-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => performSearch(searchInput.value));
+        });
+    } else if (Object.keys(facets.chapter || {}).length === 0 && chapterFiltersContainer.innerHTML.includes('Perform a search')) {
+         chapterFiltersContainer.innerHTML = '<p class="text-[0.8rem] opacity-50 italic px-2">No chapters match.</p>';
+    }
+}
 
 
 // --- Search Logic ---
@@ -132,26 +202,41 @@ async function performSearch(query) {
     if (!query.trim()) return;
 
     // Show loading, hide others
+    if (initialState) initialState.style.display = 'none';
     loadingState.style.display = 'block';
     emptyState.style.display = 'none';
+    emptyState.innerHTML = '<p class="text-2xl font-bold font-heading text-[var(--text-primary)] mb-4">Discovery Failed</p>';
     resultsContainer.innerHTML = '';
     queryInfo.style.display = 'none';
 
+    const filters = getActiveFilters();
+
     try {
+        console.log('Searching for:', query, 'with filters:', filters);
+
         const response = await fetch(`${API_BASE}/query`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query: query.trim() }),
+            body: JSON.stringify({ query: query.trim(), filters: filters }),
         });
 
         if (!response.ok) {
-            throw new Error(`Server error: ${response.status}`);
+            const errText = await response.text();
+            throw new Error(`Server error ${response.status}: ${errText}`);
         }
 
         const data = await response.json();
+        console.log('API response:', data);
         loadingState.style.display = 'none';
 
+        if (data.facets) {
+             updateFilterCounts(data.facets);
+        }
+
         if (!data.result || data.result.length === 0) {
+            emptyState.innerHTML = `
+                <p class="text-2xl font-bold font-heading text-[var(--text-primary)] mb-2">No Results Found</p>
+                <p class="text-[var(--text-muted)] mt-2 text-sm font-mono">Try a different query or clear your filters</p>`;
             emptyState.style.display = 'block';
             return;
         }
@@ -160,9 +245,10 @@ async function performSearch(query) {
     } catch (error) {
         console.error('Search failed:', error);
         loadingState.style.display = 'none';
+        emptyState.innerHTML = `
+            <p class="text-2xl font-bold font-heading text-[var(--text-primary)] mb-2">Discovery Failed</p>
+            <p class="text-[var(--text-muted)] mt-2 text-sm font-mono">${error.message || 'Could not connect to the server. Is it running?'}</p>`;
         emptyState.style.display = 'block';
-        document.querySelector('.empty-text').textContent = 'Search failed';
-        document.querySelector('.empty-hint').textContent = error.message || 'Please try again';
     }
 }
 
@@ -177,10 +263,23 @@ function renderResults(data) {
     });
 
     // Show query info
-    queryInfo.style.display = 'block';
-    let infoHTML = `Showing ${results.length} results for "<strong>${escapeHTML(data.query)}</strong>"`;
+    queryInfo.style.display = 'flex';
+    queryInfo.className = 'query-info mb-8 pb-4 border-b border-copper/20 flex flex-wrap items-center gap-3 text-sm font-medium animate-[fadeIn_0.5s_ease]';
+    
+    let infoHTML = `<span class="text-[var(--text-secondary)] uppercase tracking-widest text-xs">Found ${results.length} passages for "<strong class="text-[var(--text-primary)] font-bold">${escapeHTML(data.query)}</strong>"</span>`;
+    
+    // Add applied filter pills
+    const activeFilters = getActiveFilters();
+    Object.keys(activeFilters).forEach(cat => {
+         if (activeFilters[cat].length > 0) {
+             activeFilters[cat].forEach(val => {
+                 infoHTML += `<span class="px-3 py-1 bg-copper/10 text-copper rounded-full border border-copper/30 text-[0.7rem] font-bold uppercase tracking-tighter">${cat}: ${val}</span>`;
+             });
+         }
+    });
+
     if (data.cache_hit) {
-        infoHTML += `<span class="cache-badge">⚡ Cache Hit (${(data.similarity_score * 100).toFixed(1)}%)</span>`;
+        infoHTML += `<span class="ml-auto px-4 py-1.5 bg-green-500/10 text-green-600 dark:text-green-400 border border-green-500/20 rounded-full font-bold text-[0.7rem] uppercase tracking-widest flex items-center gap-2 shadow-sm"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> Cached</span>`;
     }
     queryInfo.innerHTML = infoHTML;
 
@@ -195,8 +294,8 @@ function renderResults(data) {
 
 function createResultCard(result, index, queryText) {
     const card = document.createElement('div');
-    card.className = 'result-card';
-    card.style.animationDelay = `${index * 0.12}s`;
+    card.className = 'result-card glass-panel rounded-2xl p-8 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl hover:border-copper animate-[fadeInUp_0.6s_ease_backwards] relative overflow-hidden group';
+    card.style.animationDelay = `${index * 0.15}s`;
 
     const classNum = result.class || 0;
     const chapter = result.chapter || 'Unknown Chapter';
@@ -207,37 +306,43 @@ function createResultCard(result, index, queryText) {
     const pageNum = result.page || 1;
     const fileName = result.file || '';
 
-    // URL to open PDF at specific page
     const pdfUrl = `/pdfs/${fileName}#page=${pageNum}`;
-
-    // Highlight keywords in passage
     const highlightedPassage = highlightText(passage, keywords, queryText);
-
-    // Subject tag class
-    const subjectClass = subject.toLowerCase();
     const subjectIcon = getSubjectIcon(subject);
 
+
+
     card.innerHTML = `
-        <div class="card-header">
-            <span class="class-badge">CLASS ${classNum}</span>
-            <div class="chapter-title-row">
-                <a href="${pdfUrl}" target="_blank" class="chapter-title" title="Open PDF at page ${pageNum}">
-                    ${escapeHTML(chapter)} <span class="link-icon">↗</span>
+        <div class="flex flex-col gap-4 relative z-10">
+            <div class="flex items-center justify-between">
+                <span class="font-heading text-[0.7rem] font-black text-copper tracking-[3px] uppercase">CLASS ${classNum}</span>
+                <span class="text-[0.65rem] font-bold text-[var(--text-muted)] font-mono opacity-50 uppercase tracking-widest bg-copper/5 px-3 py-1 rounded-full border border-copper/10">Page ${pageNum}</span>
+            </div>
+            
+            <div class="my-1">
+                <a href="${pdfUrl}" target="_blank" class="font-heading text-xl md:text-2xl font-black text-[var(--text-primary)] no-underline inline-block hover:text-copper transition-all duration-300 pb-1 border-b-2 border-transparent hover:border-copper group/link" title="Open Source PDF">
+                   ${escapeHTML(chapter)} <span class="text-sm ml-2 opacity-30 group-hover/link:translate-x-1 group-hover/link:-translate-y-1 group-hover/link:opacity-100 transition-all inline-block">↗</span>
                 </a>
             </div>
-            <div style="display: flex; align-items: center; gap: 10px; margin-top: -4px;">
-                <span class="subject-tag ${subjectClass}">${subjectIcon} ${escapeHTML(subject)}</span>
-                <span style="font-size: 0.65rem; color: var(--text-muted); font-family: 'Space Mono'; opacity: 0.7;">PAGE ${pageNum}</span>
+
+            <div class="flex items-center gap-4 flex-wrap mt-2">
+                <span class="font-bold text-[0.75rem] text-[var(--dark-brown)] dark:text-white px-3 py-1.5 rounded-xl bg-copper/10 border border-copper/20 shadow-sm flex items-center gap-2 uppercase tracking-wider">${subjectIcon} ${escapeHTML(subject)}</span>
+
+                
+                <div class="ml-auto w-32 flex flex-col gap-1">
+                    <div class="flex justify-between items-end">
+                        <span class="text-[0.6rem] font-black text-copper tracking-[2px] uppercase opacity-60">PRECISION</span>
+                        <span class="text-xs font-black text-copper font-mono">${score.toFixed(1)}%</span>
+                    </div>
+                    <div class="h-2 bg-copper/10 dark:bg-white/5 rounded-full overflow-hidden shadow-inner">
+                        <div class="h-full bg-gradient-to-r from-copper to-brown transition-all duration-1000 ease-out score-bar-fill w-0" data-score="${score}"></div>
+                    </div>
+                </div>
             </div>
+
+            <div class="text-[var(--text-secondary)] text-[1.05rem] leading-relaxed font-normal card-passage mt-3 border-l-4 border-copper/10 pl-5 dark:border-white/5 transition-colors group-hover:border-copper/40 italic">"${highlightedPassage}"</div>
         </div>
-        <div class="card-passage">${highlightedPassage}</div>
-        <div class="score-bar-wrapper">
-            <span class="score-label">MATCH</span>
-            <div class="score-bar-track">
-                <div class="score-bar-fill" data-score="${score}"></div>
-            </div>
-            <span class="score-value">${score.toFixed(1)}%</span>
-        </div>
+        <div class="absolute -right-12 -bottom-12 w-48 h-48 bg-copper/5 rounded-full blur-3xl group-hover:bg-copper/10 transition-colors duration-700"></div>
     `;
 
     return card;
@@ -248,20 +353,16 @@ function createResultCard(result, index, queryText) {
 
 function highlightText(text, keywords, queryText) {
     let escaped = escapeHTML(text);
-
-    // Get all terms to highlight: keywords + query words
     const queryWords = queryText.toLowerCase()
         .split(/\s+/)
         .filter(w => w.length >= 3)
         .map(w => w.replace(/[^a-zA-Z0-9]/g, ''));
-
     const allTerms = [...new Set([...keywords, ...queryWords])].filter(Boolean);
 
     allTerms.forEach(term => {
         const regex = new RegExp(`(${escapeRegex(term)})`, 'gi');
-        escaped = escaped.replace(regex, '<span class="highlight">$1</span>');
+        escaped = escaped.replace(regex, '<span class="bg-copper/20 text-[var(--text-primary)] border-b-2 border-copper/60 font-bold px-0.5 rounded-sm transition-all hover:bg-copper hover:text-white">$1</span>');
     });
-
     return escaped;
 }
 
@@ -275,44 +376,34 @@ function escapeRegex(str) {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function truncate(str, maxLen) {
-    if (str.length <= maxLen) return str;
-    return str.substring(0, maxLen) + '...';
-}
-
 function getSubjectIcon(subject) {
-    const icons = {
-        physics: '⚡',
-        chemistry: '🧪',
-        biology: '🧬',
-        science: '🔬',
-    };
+    const icons = { physics: '⚡', chemistry: '🧪', biology: '🧬', science: '🔬' };
     return icons[subject.toLowerCase()] || '📖';
 }
 
 
 // --- Event Listeners ---
+searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(searchInput.value); });
+searchBtn.addEventListener('click', () => performSearch(searchInput.value));
+chips.forEach(chip => { 
+    chip.addEventListener('click', () => { 
+        searchInput.value = chip.dataset.query; 
+        performSearch(searchInput.value); 
+    }); 
+});
 
-// Search on Enter
-searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+document.querySelectorAll('.filter-checkbox').forEach(cb => {
+    cb.addEventListener('change', () => performSearch(searchInput.value));
+});
+
+resetFiltersBtn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-checkbox:checked').forEach(cb => { cb.checked = false; });
+    if (searchInput.value.trim() !== '') {
         performSearch(searchInput.value);
+    } else {
+        chapterFiltersContainer.innerHTML = '<p class="text-[0.8rem] opacity-50 italic px-2">Perform a search to see chapters...</p>';
+        document.querySelectorAll('.filter-count').forEach(span => span.textContent = '(0)');
     }
 });
 
-// Search on button click
-searchBtn.addEventListener('click', () => {
-    performSearch(searchInput.value);
-});
-
-// Chip clicks
-chips.forEach(chip => {
-    chip.addEventListener('click', () => {
-        const query = chip.dataset.query;
-        searchInput.value = query;
-        performSearch(query);
-    });
-});
-
-// Focus search on page load
 searchInput.focus();
